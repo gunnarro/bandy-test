@@ -30,7 +30,7 @@ public class TrainingTest {
 		assertEquals("2013/2014", training.getSeason().getPeriod());
 		assertEquals("01.02.2014 04:00", Utility.formatTime(training.getStartTime(), "dd.MM.yyyy hh:mm"));
 		assertEquals("01.02.2014 06:00", Utility.formatTime(training.getEndTime(), "dd.MM.yyyy hh:mm"));
-		assertEquals(ActivityStatusEnum.BEGIN, training.getStatus());
+		assertNull(training.getStatus());
 		assertEquals("team name", training.getTeam().getName());
 		assertEquals("venue", training.getVenue());
 		assertTrue(training.isFinished());

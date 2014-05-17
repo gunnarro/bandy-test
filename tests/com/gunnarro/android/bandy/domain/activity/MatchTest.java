@@ -18,7 +18,7 @@ public class MatchTest {
 		assertNull(match.getNumberOfGoalsHome());
 		assertNull(match.getNumberOfGoalsAway());
 		assertNull(match.getResult());
-		assertEquals("NOT STARTED", match.getStatus());
+		assertEquals("NOT PLAYED", match.getMatchStatus().getName());
 		assertFalse(match.isPlayed());
 	}
 

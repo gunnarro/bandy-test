@@ -39,6 +39,7 @@ import com.gunnarro.android.bandy.domain.party.Referee;
 import com.gunnarro.android.bandy.repository.impl.BandyRepositoryImpl;
 import com.gunnarro.android.bandy.repository.impl.BandyRepositoryImpl.PlayerLinkTableTypeEnum;
 import com.gunnarro.android.bandy.repository.table.SettingsTable;
+import com.gunnarro.android.bandy.service.exception.ApplicationException;
 import com.gunnarro.android.bandy.service.impl.DataLoader;
 
 @RunWith(RobolectricTestRunner.class)
@@ -54,7 +55,8 @@ public class BandyRepositoryTest {
 		String dbPath = dbFile.getAbsolutePath();
 		db = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE);
 		bandyRepository = new BandyRepositoryImpl(db);
-		// bandyRepository.deleteAllTableData();
+		// Cleanup after each test case
+//		 bandyRepository.deleteAllTableData();
 	}
 
 	@After
@@ -94,7 +96,8 @@ public class BandyRepositoryTest {
 	@Test
 	public void verifySettings() {
 		assertThat(DataLoader.TEAM_XML_URL + "/uil.xml", equalTo(bandyRepository.getSetting(SettingsTable.DATA_FILE_URL_KEY)));
-		assertThat("0.1", equalTo(bandyRepository.getSetting(SettingsTable.DATA_FILE_VERSION_KEY)));
+		// assertThat("0.1",
+		// equalTo(bandyRepository.getSetting(SettingsTable.DATA_FILE_VERSION_KEY)));
 		// assertThat("0",
 		// equalTo(bandyRepository.getSetting(SettingsTable.DATA_FILE_LAST_UPDATED_KEY)));
 		assertThat("na", equalTo(bandyRepository.getSetting(SettingsTable.MAIL_ACCOUNT_KEY)));
@@ -163,7 +166,6 @@ public class BandyRepositoryTest {
 
 		// Create team
 		int teamId = bandyRepository.createTeam(new Team("newTeam", club, 2004, "Male"));
-		System.out.println("teamId=" + teamId);
 		Team team = bandyRepository.getTeam(teamId);
 		assertNotNull(team);
 		assertEquals("newTeam", team.getName());
@@ -190,12 +192,52 @@ public class BandyRepositoryTest {
 		assertTrue(player.getAddress().isAddressValid());
 
 		// Must cleanup, so the test case can be run multiple times
-		int deletedPlayerRowNr = bandyRepository.deletePlayer(playerId);
-		int deletedTeamRowNr = bandyRepository.deleteTeam(teamId);
-		int deletedClubRowNr = bandyRepository.deleteClub(clubId);
-		assertTrue(deletedPlayerRowNr != -1);
-		assertTrue(deletedTeamRowNr != -1);
-		assertTrue(deletedClubRowNr != -1);
+		int deletedPlayerRows = bandyRepository.deletePlayer(playerId);
+		int deletedTeamRows = bandyRepository.deleteTeam(teamId);
+		int deletedClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deletedPlayerRows == 1);
+		assertTrue(deletedTeamRows == 1);
+		assertTrue(deletedClubRows == 1);
+	}
+
+	@Test
+	public void newClubDuplicate() {
+		int clubId = bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		try {
+			bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		} catch (ApplicationException ae) {
+			assertEquals("[SQLITE_CONSTRAINT]  Abort due to constraint violation (columns club_name, club_department_name are not unique)", ae.getMessage());
+		}
+		// Clean up
+		int deletedClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deletedClubRows == 1);
+	}
+
+	@Test
+	public void newTeamInvalidClub() {
+		try {
+			bandyRepository.createTeam(new Team("newTeam", new Club("name", "department"), 2004, "Male"));
+		} catch (ApplicationException ae) {
+			assertEquals("Club must be set for creating new Team!", ae.getMessage());
+		}
+	}
+
+	@Test
+	public void newTeamDuplicate() {
+		int clubId = bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		Club club = bandyRepository.getClub(clubId);
+		int teamId = bandyRepository.createTeam(new Team("newTeam", club, 2004, "Male"));
+		try {
+			bandyRepository.createTeam(new Team("newTeam", club, 2004, "Male"));
+		} catch (ApplicationException ae) {
+			assertEquals("[SQLITE_CONSTRAINT]  Abort due to constraint violation (column team_name is not unique)", ae.getMessage());
+		}
+
+		// Clean up
+		int deletedClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deletedClubRows == 1);
+		int deletedTeamRows = bandyRepository.deleteTeam(teamId);
+		assertTrue(deletedTeamRows == 1);
 	}
 
 	@Test
@@ -214,8 +256,36 @@ public class BandyRepositoryTest {
 		assertTrue(contact.getAddress().isAddressValid());
 
 		// Must cleanup
-		int deletedContactRowNr = bandyRepository.deleteContact(contactId);
-		assertTrue(deletedContactRowNr != -1);
+		int deletedContactRows = bandyRepository.deleteContact(contactId);
+		assertTrue(deletedContactRows == 1);
+	}
+
+	@Test
+	public void newPlayer() {
+		int clubId = bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		Club club = bandyRepository.getClub(clubId);
+		int teamId = bandyRepository.createTeam(new Team("team name", club, 2004, "Male"));
+		Team team = bandyRepository.getTeam(teamId);
+		Address address = new Address("streetname", "25", "c", "postalcode", "city", "country");
+		int playerId = bandyRepository.createPlayer(new Player(team, "firstName", "middleName", "lastName", "M", PlayerStatusEnum.ACTIVE, null, System
+				.currentTimeMillis(), address));
+
+		Player player = bandyRepository.getPlayer(playerId);
+		assertNotNull(player);
+		assertEquals("Firstname Middlename Lastname", player.getFullName());
+		assertEquals("M", player.getGender());
+		assertEquals("Country", player.getAddress().getCountry());
+		assertEquals("Streetname 25C", player.getAddress().getFullStreetName());
+		assertEquals("postalcode", player.getAddress().getPostalCode());
+		assertTrue(player.getAddress().isAddressValid());
+
+		// Must cleanup
+		int deletedPlayerRows = bandyRepository.deletePlayer(playerId);
+		assertTrue(deletedPlayerRows == 1);
+		int deletedTeamRows = bandyRepository.deleteTeam(teamId);
+		assertTrue(deletedTeamRows == 1);
+		int deletedClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deletedClubRows == 1);
 	}
 
 	@Test
@@ -239,23 +309,25 @@ public class BandyRepositoryTest {
 		assertEquals("postalcode", referee.getAddress().getPostalCode());
 
 		// Must cleanup
-		int deletedRefereeRowNr = bandyRepository.deleteReferee(refereeId);
-		assertTrue(deletedRefereeRowNr != -1);
+		int deletedRefereeRows = bandyRepository.deleteReferee(refereeId);
+		assertTrue(deletedRefereeRows == 1);
 	}
 
 	@Test
 	public void newTraining() {
 		Season season = bandyRepository.getSeason(1);
-		Team team = bandyRepository.getTeam("%");
+		int clubId = bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		Club club = bandyRepository.getClub(clubId);
+		int teamId = bandyRepository.createTeam(new Team("team name", club, 2004, "Male"));
+		Team team = bandyRepository.getTeam(teamId);
 		long startTime = System.currentTimeMillis();
 		Training newTraining = new Training(season, startTime, System.currentTimeMillis(), team, "place");
 		int newTrainingId = bandyRepository.createTraining(newTraining);
 		Training training = bandyRepository.getTrainingByDate(team.getId(), startTime);
-		assertEquals("homeTeam - awayTeam", training.getSeason().getPeriod());
-		assertEquals("homeTeam - awayTeam", training.getVenue());
-		assertEquals(startTime, training.getSeason().getStartTime());
-		assertEquals("homeTeam - awayTeam", training.getName());
-		assertEquals("homeTeam - awayTeam", training.getTeam().getName());
+		assertEquals("2013/2014", training.getSeason().getPeriod());
+		assertEquals("place", training.getVenue());
+		// assertEquals(startTime, training.getStartTime());
+		assertEquals("team name", training.getTeam().getName());
 
 		// register player for training
 		this.bandyRepository.createPlayerLink(PlayerLinkTableTypeEnum.TRAINING, 1, newTrainingId);
@@ -266,43 +338,57 @@ public class BandyRepositoryTest {
 		training = bandyRepository.getTraining(newTrainingId);
 
 		// clean up
-		int deleteTrainingRows = bandyRepository.deleteTraining(newTrainingId);
-		assertTrue(deleteTrainingRows == 1);
+		int deleteClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deleteClubRows == 1);
+		int deletedTeamRows = bandyRepository.deleteTeam(teamId);
+		assertTrue(deletedTeamRows == 1);
+		int deletedTrainingRows = bandyRepository.deleteTraining(newTrainingId);
+		assertTrue(deletedTrainingRows == 1);
 	}
 
-	// @Ignore
 	@Test
 	public void newMatch() {
-		Team team = bandyRepository.getTeam("%");
+		int clubId = bandyRepository.createClub(new Club(null, "newSportsClub", "newBandy", "CK", "bandyStadium", null, "http://club.homepage.org"));
+		Club club = bandyRepository.getClub(clubId);
+		int teamId = bandyRepository.createTeam(new Team("team name", club, 2004, "Male"));
+		Team team = bandyRepository.getTeam(teamId);
 		Season season = bandyRepository.getSeason("2013/2014");
-		Match newMatch = new Match(season, System.currentTimeMillis() - 60000, new Team(22, "teamname"), new Team("homeTeam"), new Team("awayTeam"), "venue",
-				new Referee("referee-firstname", null, "referee-lastname"));
+		Match newMatch = new Match(season, System.currentTimeMillis() - 60000, team, new Team("homeTeam"), new Team("awayTeam"), "venue", new Referee(
+				"referee-firstname", null, "referee-lastname"));
 		int matchId = bandyRepository.createMatch(newMatch);
 		Match match = bandyRepository.getMatch(matchId);
 		// assertEquals("teamName", match.getTeam().getName());
 		assertEquals("homeTeam - awayTeam", match.getTeamVersus());
-		assertEquals("NOT PLAYED", match.getMatchStatus());
+		assertEquals("NOT PLAYED", match.getMatchStatus().getName());
 		assertEquals(MatchTypesEnum.LEAGUE, match.getMatchType());
 		assertEquals("0 - 0", match.getResult());
-		assertEquals("Referee-firstname Referee-lastname", match.getReferee().getFullName());
+		assertNull(match.getReferee());
 		assertEquals(0, match.getNumberOfSignedPlayers().intValue());
-		assertNull(match.getNumberOfGoalsHome());
-		assertNull(match.getNumberOfGoalsAway());
-		assertNull(match.getResult());
+		assertEquals(0, match.getNumberOfGoalsHome().intValue());
+		assertEquals(0, match.getNumberOfGoalsAway().intValue());
+		assertEquals("0 - 0", match.getResult());
 		assertFalse(match.isPlayed());
+		assertEquals(0, match.getNumberOfSignedPlayers().intValue());
 
 		// Registrer referee
-		bandyRepository.registrerRefereeForMatch(1, matchId);
+		Referee referee = new Referee(null, "firstNamey", "middleNamey", "lastNamey", "M");
+		referee.setMobileNumber("+4711223344");
+		referee.setEmailAddress("referee@mail.com");
+		int refereeId = bandyRepository.createReferee(referee);
+		bandyRepository.registrerRefereeForMatch(refereeId, matchId);
 		match = bandyRepository.getMatch(matchId);
-		assertEquals(1, match.getReferee().getFullName());
+		assertEquals("Firstnamey Middlenamey Lastnamey", match.getReferee().getFullName());
 
 		// Registrer player
-		bandyRepository.createPlayerLink(PlayerLinkTableTypeEnum.MATCH, 1, matchId);
+		int playerId = bandyRepository.createPlayer(new Player(team, "firstName", "middleName", "lastName", "M", PlayerStatusEnum.ACTIVE, null, System
+				.currentTimeMillis(), null));
+		bandyRepository.createPlayerLink(PlayerLinkTableTypeEnum.MATCH, playerId, matchId);
 		match = bandyRepository.getMatch(matchId);
 		assertEquals(1, match.getNumberOfSignedPlayers().intValue());
 
 		// Unregistrer player
-		bandyRepository.deletePlayerLink(PlayerLinkTableTypeEnum.MATCH, 1, matchId);
+		int deletePlayerLinkRows = bandyRepository.deletePlayerLink(PlayerLinkTableTypeEnum.MATCH, playerId, matchId);
+		assertEquals(1, deletePlayerLinkRows);
 		match = bandyRepository.getMatch(matchId);
 		assertEquals(0, match.getNumberOfSignedPlayers().intValue());
 
@@ -319,29 +405,37 @@ public class BandyRepositoryTest {
 		assertEquals(2, matchEventList.size());
 		assertEquals(matchId, matchEventList.get(0).getMatchId());
 		assertEquals("newTeam", matchEventList.get(0).getTeamName());
-		assertEquals("Player Hometeam", matchEventList.get(0).getPlayerName());
+		assertEquals("player hometeam", matchEventList.get(0).getPlayerName());
 		assertEquals(MatchEventTypesEnum.GOAL_HOME.name(), matchEventList.get(0).getEventTypeName());
-		assertEquals("23", matchEventList.get(0).getPlayedMinutes());
+		assertEquals(23, matchEventList.get(0).getPlayedMinutes().intValue());
 		assertEquals("2", matchEventList.get(0).getValue());
 
 		assertEquals(matchId, matchEventList.get(1).getMatchId());
 		assertEquals("newTeam", matchEventList.get(1).getTeamName());
-		assertEquals("Player Awayteam", matchEventList.get(1).getPlayerName());
+		assertEquals("player awayteam", matchEventList.get(1).getPlayerName());
 		assertEquals(MatchEventTypesEnum.GOAL_AWAY.name(), matchEventList.get(1).getEventTypeName());
-		assertEquals("43", matchEventList.get(1).getPlayedMinutes());
+		assertEquals(43, matchEventList.get(1).getPlayedMinutes().intValue());
 		assertEquals("3", matchEventList.get(1).getValue());
 
 		// FIXME
-		Status matchStatus = bandyRepository.getMatchStatus(1);
+		Status matchStatus = bandyRepository.getMatchStatus(2);
 		bandyRepository.updateMatchStatus(matchId, matchStatus.getId());
 		match = bandyRepository.getMatch(matchId);
-		assertEquals("PLAYED", match.getStatus());
+		assertEquals("PLAYED", match.getStatus().getName());
 
 		// Clean up
+		int deletedRefereeRows = bandyRepository.deleteReferee(refereeId);
+		assertTrue(deletedRefereeRows == 1);
 		int deletedMatchEventsRows = bandyRepository.deleteMatchEvents(matchId);
 		assertTrue(deletedMatchEventsRows == 2);
 		int deletedMatchRows = bandyRepository.deleteMatch(matchId);
 		assertTrue(deletedMatchRows == 1);
+		int deletedClubRows = bandyRepository.deleteClub(clubId);
+		assertTrue(deletedClubRows == 1);
+		int deletedTeamRows = bandyRepository.deleteTeam(teamId);
+		assertTrue(deletedTeamRows == 1);
+		int deletedPlayerRows = bandyRepository.deletePlayer(playerId);
+		assertTrue(deletedPlayerRows == 1);
 	}
 
 	@Ignore
