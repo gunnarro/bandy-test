@@ -1,20 +1,19 @@
 package com.gunnarro.android.bandy.domain.statistic;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.gunnarro.android.bandy.domain.activity.Match.MatchTypesEnum;
+import com.gunnarro.android.bandy.domain.activity.Type.MatchTypesEnum;
 
 public class MatchStatisticTest {
 
 	@Test
 	public void testConstructor() {
-		MatchStatistic matchStatistic = new MatchStatistic(1, "Team Name", MatchTypesEnum.LEAGUE.getCode(), 1, 2, 3, 4, 5, 6);
-		assertEquals(1, matchStatistic.getSeasonId());
+		MatchStatistic matchStatistic = new MatchStatistic(10, "Team Name", MatchTypesEnum.LEAGUE, 1, 2, 3, 4, 5, 6);
+		assertEquals(10, matchStatistic.getSeasonId());
 		assertEquals("Team Name", matchStatistic.getTeamName());
 		assertEquals(MatchTypesEnum.LEAGUE.name(), matchStatistic.getName());
-		assertEquals(MatchTypesEnum.LEAGUE.getCode(), matchStatistic.getMatchTypeId());
 		assertEquals(1, matchStatistic.getPlayed().intValue());
 		assertEquals(2, matchStatistic.getWon().intValue());
 		assertEquals(3, matchStatistic.getDraw().intValue());

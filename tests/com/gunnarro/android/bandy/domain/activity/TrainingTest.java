@@ -1,13 +1,15 @@
 package com.gunnarro.android.bandy.domain.activity;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Calendar;
 
 import org.junit.Test;
 
 import com.gunnarro.android.bandy.domain.Team;
-import com.gunnarro.android.bandy.domain.activity.Activity.ActivityStatusEnum;
 import com.gunnarro.android.bandy.domain.activity.Activity.ActivityTypesEnum;
 import com.gunnarro.android.bandy.utility.Utility;
 
@@ -34,6 +36,7 @@ public class TrainingTest {
 		assertEquals("team name", training.getTeam().getName());
 		assertEquals("venue", training.getVenue());
 		assertTrue(training.isFinished());
+		assertEquals(0, training.getNumberOfParticipatedPlayers().intValue());
 	}
 
 	@Test
