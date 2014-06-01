@@ -38,6 +38,7 @@ import com.gunnarro.android.bandy.domain.party.Contact;
 import com.gunnarro.android.bandy.domain.party.Player;
 import com.gunnarro.android.bandy.domain.party.Player.PlayerStatusEnum;
 import com.gunnarro.android.bandy.domain.party.Referee;
+import com.gunnarro.android.bandy.domain.view.list.Item;
 import com.gunnarro.android.bandy.repository.impl.BandyRepositoryImpl;
 import com.gunnarro.android.bandy.repository.impl.BandyRepositoryImpl.PlayerLinkTableTypeEnum;
 import com.gunnarro.android.bandy.repository.table.SettingsTable;
@@ -113,8 +114,10 @@ public class BandyRepositoryTest {
 
 	@Test
 	public void checkInitializedData() {
-		assertArrayEquals(new String[] { "CUP", "LEAGUE", "TOURNAMENT", "TRAINING" }, bandyRepository.getMatchTypes());
-		assertArrayEquals(new String[] { "CANCELLED", "NOT PLAYED", "ONGOING", "PLAYED", "POSTPONED" }, bandyRepository.getMatchStatusList());
+		assertArrayEquals(new Item[] { new Item(0, "CUP"), new Item(0, "LEAGUE"), new Item(0, "TOURNAMENT"), new Item(0, "TRAINING") },
+				bandyRepository.getMatchTypes());
+		assertArrayEquals(new Item[] { new Item(0, "CANCELLED"), new Item(0, "NOT PLAYED"), new Item(0, "ONGOING"), new Item(0, "PLAYED"),
+				new Item(0, "POSTPONED") }, bandyRepository.getMatchStatusList());
 		assertArrayEquals(new String[] { "Gutt", "Junior", "Knøtt", "Lillegutt", "Old boys", "Smågutt", "Veteran" }, bandyRepository.getLeagueNames());
 		assertArrayEquals(new String[] { "ACTIVE", "INJURED", "PASSIVE", "QUIT" }, bandyRepository.getPlayerStatusTypes());
 		assertArrayEquals(new String[] { "BOARD MEMBER", "CHAIRMAN", "COACH", "DEFAULT", "DEPUTY CHAIRMAN", "PARENT", "TEAMLEAD" },
